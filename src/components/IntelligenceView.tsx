@@ -14,6 +14,27 @@ import {
 } from "lucide-react";
 import { CommandState, Incident } from "../types";
 
+interface SectorData {
+  id: string;
+  name: string;
+  points: string;
+  occupancy: number;
+  status: "CRITICAL" | "STRESSED" | "NOMINAL";
+  color: string;
+  textPos: { x: number; y: number };
+}
+
+const SECTORS: SectorData[] = [
+  { id: "sec-n", name: "North Stand (Zone 1)", points: "200,100 400,100 370,160 230,160", occupancy: 94, status: "CRITICAL", color: "#EF4444", textPos: { x: 300, y: 130 } },
+  { id: "sec-ne", name: "North-East (Zone 2)", points: "400,100 500,180 420,200 370,160", occupancy: 82, status: "STRESSED", color: "#F97316", textPos: { x: 420, y: 155 } },
+  { id: "sec-e", name: "East Stand (Zone 3)", points: "500,180 500,270 420,250 420,200", occupancy: 54, status: "NOMINAL", color: "#10B981", textPos: { x: 450, y: 225 } },
+  { id: "sec-se", name: "South-East (Zone 4)", points: "500,270 400,350 370,290 420,250", occupancy: 42, status: "NOMINAL", color: "#10B981", textPos: { x: 420, y: 295 } },
+  { id: "sec-s", name: "South Stand (Zone 5)", points: "400,350 200,350 230,290 370,290", occupancy: 78, status: "STRESSED", color: "#F97316", textPos: { x: 300, y: 320 } },
+  { id: "sec-sw", name: "South-West (Zone 6)", points: "200,350 100,270 180,250 230,290", occupancy: 39, status: "NOMINAL", color: "#10B981", textPos: { x: 180, y: 295 } },
+  { id: "sec-w", name: "West Stand (Zone 7)", points: "100,270 100,180 180,200 180,250", occupancy: 61, status: "NOMINAL", color: "#10B981", textPos: { x: 150, y: 225 } },
+  { id: "sec-wn", name: "West-North (Zone 8)", points: "100,180 200,100 230,160 180,200", occupancy: 91, status: "CRITICAL", color: "#EF4444", textPos: { x: 180, y: 155 } }
+];
+
 interface IntelligenceViewProps {
   state: CommandState;
   onRefresh: () => void;
@@ -246,12 +267,83 @@ export default function IntelligenceView({
                 transform: `scale(${zoom}) ${mapMode === "3D" ? "perspective(600px) rotateX(40deg) rotateZ(-15deg)" : ""}`,
               }}
             >
-              {/* Hotlink Image as Base Map */}
-              <img 
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuC9kDM8WlTylDINZ0eoNtsxDKwhk_IvU4DE7KQ-rUDjB1I5Y4PbZFnQrvXa2xw96Qo96zmd_rO_ZafywqxHU388PYHKOKJTgRic9bL6LW3fCrS092XZ0M40gTaPIROf4U_szCdxPQ-7nWn4gdryqp9wPVtImshnknwPhByMEMuVixfHS63hPHTdAhhdLAdvZuF_Lq9mT0qzPX5QPPoSopjUH8xQZnV3w1nvN0EWMEtqxzls5pUEyib7AqzK2Y7gKl3On-LPCIJULNAQ"
-                alt="3D Stadium Intel Blueprint"
-                className="w-full h-full object-contain rounded-xl opacity-75 mix-blend-screen pointer-events-none"
-              />
+              {/* Interactive Vector SVG Stadium Heatmap & Seating Grid */}
+              <svg 
+                viewBox="0 0 600 450" 
+                className="w-full h-full rounded-xl pointer-events-auto select-none opacity-85"
+                style={{ filter: "drop-shadow(0 20px 40px rgba(0,0,0,0.6))" }}
+              >
+                {/* Background Concentric Radar Rings */}
+                <circle cx="300" cy="225" r="235" fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="1" strokeDasharray="6,6" />
+                <circle cx="300" cy="225" r="195" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1" strokeDasharray="4,4" />
+                <circle cx="300" cy="225" r="150" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
+
+                {/* Stadium Roof / Outer Boundary Edge */}
+                <path 
+                  d="M 200,90 Q 300,70 400,90 Q 510,170 510,225 Q 510,280 400,360 Q 300,380 200,360 Q 90,280 90,225 Q 90,170 200,90 Z" 
+                  fill="none" 
+                  stroke="rgba(242, 125, 38, 0.2)" 
+                  strokeWidth="3.5" 
+                  className="animate-pulse"
+                />
+
+                {/* Seating Sectors Bowl */}
+                <g>
+                  {SECTORS.map((sec) => {
+                    const isSelected = selectedGate === sec.name;
+                    return (
+                      <polygon
+                        key={sec.id}
+                        points={sec.points}
+                        className="transition-all duration-300 cursor-pointer stroke-white/10 hover:stroke-primary/50"
+                        style={{
+                          fill: sec.status === "CRITICAL" 
+                            ? "rgba(239, 68, 68, 0.35)" 
+                            : sec.status === "STRESSED" 
+                            ? "rgba(249, 115, 22, 0.25)" 
+                            : "rgba(16, 185, 129, 0.12)",
+                          stroke: isSelected ? "rgba(242, 125, 38, 0.8)" : "rgba(255,255,255,0.1)",
+                          strokeWidth: isSelected ? 2 : 1,
+                        }}
+                        onClick={() => setSelectedGate(sec.name)}
+                      />
+                    );
+                  })}
+                </g>
+
+                {/* Seating Sectors Overlay Text Labels */}
+                {SECTORS.map((sec) => (
+                  <text
+                    key={`label-${sec.id}`}
+                    x={sec.textPos.x}
+                    y={sec.textPos.y}
+                    textAnchor="middle"
+                    className="font-mono font-black select-none pointer-events-none fill-white/90 text-[8px]"
+                    style={{ fontSize: "7.5px", letterSpacing: "0.2px", textShadow: "1px 1px 2px rgba(0,0,0,0.9)" }}
+                  >
+                    {sec.occupancy}%
+                  </text>
+                ))}
+
+                {/* Pitch Outer Runway Track */}
+                <rect x="230" y="175" width="140" height="100" rx="6" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
+
+                {/* Soccer Pitch field */}
+                <g className="opacity-75">
+                  <rect x="240" y="185" width="120" height="80" rx="4" fill="#0f2a1b" stroke="#10b981" strokeWidth="2" />
+                  {/* Center lines */}
+                  <line x1="300" y1="185" x2="300" y2="265" stroke="#10b981" strokeWidth="1.5" />
+                  {/* Center circle */}
+                  <circle cx="300" cy="225" r="16" fill="none" stroke="#10b981" strokeWidth="1.5" />
+                  <circle cx="300" cy="225" r="2.5" fill="#10b981" />
+                  {/* Penalty Box Left */}
+                  <rect x="240" y="201" width="22" height="48" fill="none" stroke="#10b981" strokeWidth="1.5" />
+                  <rect x="240" y="213" width="8" height="24" fill="none" stroke="#10b981" strokeWidth="1.5" />
+                  {/* Penalty Box Right */}
+                  <rect x="338" y="201" width="22" height="48" fill="none" stroke="#10b981" strokeWidth="1.5" />
+                  <rect x="352" y="213" width="8" height="24" fill="none" stroke="#10b981" strokeWidth="1.5" />
+                </g>
+              </svg>
 
               {/* Dynamic Overlay Markers (Gates) */}
               {/* Gate A (Critical Pressure Hotspot) */}
